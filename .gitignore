@@ -1,0 +1,11 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/PhotoCabinet/PhotoCabinet/bin/Debug/netcoreapp2.2
+/PhotoCabinet/.vs/PhotoCabinet/v16
+/PhotoCabinet/PhotoCabinet/obj
+/PhotoCabinet/PhotoCabinetTest/bin/Debug/netcoreapp2.2
+/PhotoCabinet/PhotoCabinetTest/obj/Debug/netcoreapp2.2
+/PhotoCabinet/PhotoCabinetTest/obj
+/PhotoCabinet/.vs/PhotoCabinet/DesignTimeBuild
