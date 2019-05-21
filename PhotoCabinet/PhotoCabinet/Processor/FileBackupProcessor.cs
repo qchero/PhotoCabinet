@@ -1,12 +1,24 @@
-﻿using System;
+﻿using PhotoCabinet.Model;
+using PhotoCabinet.Processor;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
 namespace PhotoCabinet
 {
-    public static class FileBackupProcessor
+    public static class FileBackupProcessor : IProcessor
     {
+        public string PrepareContext(Context context)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool ProcessContext(Context context)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Return a map of file path to new file names
         /// </summary>
@@ -34,5 +46,7 @@ namespace PhotoCabinet
 
             Console.WriteLine($"[Backup] {count} files backed up");
         }
+
+        
     }
 }

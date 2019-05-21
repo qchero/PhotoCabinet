@@ -1,19 +1,28 @@
-﻿using System.Collections.Generic;
+﻿using PhotoCabinet.Model;
+using PhotoCabinet.Processor;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
 namespace PhotoCabinet
 {
-    public static class FileDiscoverProcessor
+    public class FileDiscoverProcessor : IProcessor
     {
-        public static IEnumerable<string> GetAllFilesInDirectory(string directoryPath)
+        public bool PrepareContext(Context context)
         {
-            IEnumerable<string> subDirectoryFiles = Directory.GetDirectories(directoryPath)
-                .SelectMany(f => GetAllFilesInDirectory(f));
+            var allFilesInDirectory = FileDiscoveryHelper.GetAllFilesInDirectory(
+                context.Configuration.PendingProcessingDirectory.ToFullPath());
+            context.FilePathToMetadataMap = allFilesInDirectory
+                .ToDictionary(
+                    path => path,
+                    path => MetadataExtractor.Extract(path));
 
-            return Directory.GetFiles(directoryPath)
-                .Concat(subDirectoryFiles)
-                .ToList();
+            return true;
+        }
+
+        public bool ProcessContext(Context context)
+        {
+            throw new System.NotImplementedException();
         }
     }
 }

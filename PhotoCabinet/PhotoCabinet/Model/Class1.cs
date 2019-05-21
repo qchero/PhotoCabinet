@@ -4,8 +4,10 @@ using System.Text;
 
 namespace PhotoCabinet.Model
 {
-    public class Library
+    public class LoggingSession
     {
+        string Summary { get; set; }
 
+        string Details { get; set; }
     }
 }

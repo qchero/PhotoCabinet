@@ -4,11 +4,15 @@ using System.Text;
 
 namespace PhotoCabinet
 {
-    public static class Configuration
+    public class Configuration
     {
-        public static string[] KnownDateFormats =
+        public string WorkDirectory = "./";
+
+        public string PendingProcessingDirectory = "PendingProcessing/";
+
+        public string[] KnownDateFormats =
         {
-            ""
+            "yyyyMMddHHmmss"
         };
     }
 }
