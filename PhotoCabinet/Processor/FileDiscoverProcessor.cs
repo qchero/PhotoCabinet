@@ -10,8 +10,39 @@ using System.Linq;
 
 namespace PhotoCabinet
 {
+    /// <summary>
+    /// Discover all photos and videos in PendingProcessingDirectory
+    /// [Context] Set PendingProcessingFiles to the list of files to be processed
+    /// [Context] Initialize LibraryFiles to the list of files in library
+    /// [Context] Build LibraryGroupToFileMap for indexing the library by year and month
+    /// [Context] Update FileToMetadataMap to include the metadata of all PendingProcessingFiles and LibraryFiles
+    /// </summary>
     public class FileDiscoverProcessor : IProcessor
     {
+        /// <summary>
+        /// Validate the context
+        /// </summary>
+        private static void ValidateContext(Context context)
+        {
+            if (context.Configuration.LibraryDirectory.IsSubPathOf(context.Configuration.PendingProcessingDirectory))
+            {
+                throw new Exception("Library directory shouldn't be sub directory of pending processing directory");
+            }
+        }
+
+        /// <summary>
+        /// Get all the files under a certain directory
+        /// </summary>
+        private static List<string> GetAllFilesInDirectory(string directoryPath)
+        {
+            IEnumerable<string> subDirectoryFiles = Directory.GetDirectories(directoryPath)
+                .SelectMany(f => GetAllFilesInDirectory(f));
+
+            return Directory.GetFiles(directoryPath)
+                .Concat(subDirectoryFiles)
+                .ToList();
+        }
+
         /// <summary>
         /// Discover all the files in library, pending processing directory and failed processing directory
         /// And retrive the metadata
@@ -20,13 +51,9 @@ namespace PhotoCabinet
         {
             ValidateContext(context);
 
-            var allFilesInDirectory = GetAllFilesInDirectory(context.Configuration.PendingProcessingDirectory.ToFullPath());
-            context.PendingProcessingFileToMetadataMap = allFilesInDirectory
-                .ToDictionary(
-                    path => path,
-                    path => MetadataAnalyzer.Extract(path));
+            DiscoverPendingProcessingFiles(context, log);
 
-            log.LogInformationWithPaths($"{context.PendingProcessingFileToMetadataMap.Count} files pending processing", allFilesInDirectory);
+            DiscoverLibraryFiles(context, log);
 
             return true;
         }
@@ -39,30 +66,87 @@ namespace PhotoCabinet
             return true;
         }
 
-        private static void ValidateContext(Context context)
+        private void DiscoverPendingProcessingFiles(Context context, ILogger log)
         {
-            if (context.Configuration.LibraryDirectory.IsSubPathOf(context.Configuration.PendingProcessingDirectory))
+            foreach (var path in GetAllFilesInDirectory(context.Configuration.PendingProcessingDirectory.ToFullPath()))
             {
-                throw new Exception("Library directory shouldn't be sub directory of pending processing directory");
+                var metadata = MetadataAnalyzer.Extract(path);
+                context.AddPendingProcessingFiles(path, metadata);
             }
 
-            if (context.Configuration.LibraryDirectory.IsSubPathOf(context.Configuration.FailedProcessingDirectory))
-            {
-                throw new Exception("Library directory shouldn't be sub directory of failed processing directory");
-            }
+            log.LogInformationWithPaths($"{context.FileToMetadataMap.Count} files pending processing", context.PendingProcessingFiles);
         }
 
-        /// <summary>
-        /// Get all the files under a certain directory
-        /// </summary>
-        private static IEnumerable<string> GetAllFilesInDirectory(string directoryPath)
+        private void DiscoverLibraryFiles(Context context, ILogger log)
         {
-            IEnumerable<string> subDirectoryFiles = Directory.GetDirectories(directoryPath)
-                .SelectMany(f => GetAllFilesInDirectory(f));
+            // Enumerate year directory
+            foreach (var yearDir in Directory.GetDirectories(context.Configuration.LibraryDirectory.ToFullPath()))
+            {
+                // If the directory is under pending processing directory, ignore it
+                if (yearDir.IsSubPathOf(context.Configuration.PendingProcessingDirectory.ToFullPath()))
+                {
+                    log.LogInformation($"Directory ignored since it's under pending processing directory: {yearDir}");
+                    continue;
+                }
 
-            return Directory.GetFiles(directoryPath)
-                .Concat(subDirectoryFiles)
-                .ToList();
+                // Check for invalid year
+                if (!int.TryParse(yearDir.LastPart(), out var year))
+                {
+                    log.LogWarning($"The name of year directory is not valid: {yearDir.LastPart()}");
+                    log.LogWarning($"Photos in {yearDir} will be ignored");
+                    continue;
+                }
+
+                // Files should not be placed at the year directory level
+                var yearDirFiles = Directory.GetFiles(yearDir);
+                if (yearDirFiles.Any())
+                {
+                    log.LogWarning($"Unexpected files in year dir, e.g. {yearDirFiles.First()}");
+                }
+
+                // Enumerate month directory
+                foreach (var monthDir in Directory.GetDirectories(yearDir))
+                {
+                    // If the directory is under pending processing directory, ignore it
+                    if (yearDir.IsSubPathOf(context.Configuration.PendingProcessingDirectory.ToFullPath()))
+                    {
+                        log.LogInformation($"Directory ignored since it's under pending processing directory: {yearDir}");
+                        continue;
+                    }
+
+                    // Check for invalid month
+                    if (monthDir.LastPart().Length != 2 || !int.TryParse(monthDir.LastPart(), out var month))
+                    {
+                        log.LogWarning($"The name of month directory is not valid: {monthDir.LastPart()}");
+                        continue;
+                    }
+
+                    DateTime date;
+                    try
+                    {
+                        date = new DateTime(year, month, 1);
+                    }
+                    catch (ArgumentOutOfRangeException _)
+                    {
+                        log.LogWarning($"The year or month of the directory is not valid: {monthDir}");
+                        continue;
+                    }
+
+                    // Start evaluating each file
+                    var group = date.ToString("yyyyMM");
+                    int count = 0;
+                    foreach (var path in GetAllFilesInDirectory(monthDir))
+                    {
+                        count++;
+
+                        var metadata = MetadataAnalyzer.Extract(path);
+                        metadata.Group = group;
+                        context.AddLibraryFiles(path, group, metadata);
+                    }
+
+                    log.LogInformation($"Group {group} contains {count} files");
+                }
+            }
         }
     }
 }

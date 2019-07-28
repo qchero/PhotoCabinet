@@ -3,6 +3,8 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace PhotoCabinet.Analyzer
@@ -13,8 +15,15 @@ namespace PhotoCabinet.Analyzer
         {
             string fileName = Path.GetFileName(filePath);
 
+            // Extract file info and calculate MD5
             FileInfo fileInfo = new FileInfo(filePath);
-            
+            string md5;
+            using (var fileStream = fileInfo.OpenRead())
+            {
+                var md5Algorithm = MD5.Create();
+                md5 = Md5ToString(md5Algorithm.ComputeHash(fileStream));
+            }
+
             // Extract metadata from EXIF data
             var metadataDirectories = ImageMetadataReader.ReadMetadata(filePath);
 
@@ -39,7 +48,8 @@ namespace PhotoCabinet.Analyzer
                 TimeInferredFromFileName = timeInferredFromFileName,
                 TimeTaken = timeTaken,
                 TimeFileCreated = fileInfo.CreationTime,
-                TimeFileModified = fileInfo.LastWriteTime
+                TimeFileModified = fileInfo.LastWriteTime,
+                Md5 = md5
             };
         }
 
@@ -70,6 +80,18 @@ namespace PhotoCabinet.Analyzer
             }
 
             return null;
+        }
+
+        private static string Md5ToString(byte[] md5)
+        {
+            // Loop through each byte of the hashed data and format each one as a hexadecimal string.
+            var sBuilder = new StringBuilder();
+            foreach (var t in md5)
+            {
+                sBuilder.Append(t.ToString("x2"));
+            }
+
+            return sBuilder.ToString();
         }
     }
 }

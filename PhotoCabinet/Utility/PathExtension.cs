@@ -32,6 +32,13 @@ namespace PhotoCabinet.Utility
             return Path.Combine(currentDirectoryPath, path);
         }
 
+        public static string LastPart(this string path)
+        {
+            //string fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar);
+            //return Path.GetFileName(path);
+            return new DirectoryInfo(path).Name;
+        }
+
         /// <summary>
         /// Returns <paramref name="str"/> with the minimal concatenation of <paramref name="ending"/> (starting from end) that
         /// results in satisfying .EndsWith(ending).

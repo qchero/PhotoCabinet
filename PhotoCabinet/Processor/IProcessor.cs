@@ -3,7 +3,7 @@ using PhotoCabinet.Model;
 
 namespace PhotoCabinet.Processor
 {
-    interface IProcessor
+    public interface IProcessor
     {
         bool PrepareContext(Context context, ILogger log);
 

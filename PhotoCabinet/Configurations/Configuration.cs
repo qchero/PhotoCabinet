@@ -10,8 +10,6 @@ namespace PhotoCabinet
 
         public string PendingProcessingDirectory = @"F:\TestTestPhotoCabinet\PendingProcessing";
 
-        public string FailedProcessingDirectory = @"F:\TestTestPhotoCabinet\FailedProcessing";
-
         public string[] KnownDateFormats =
         {
             "yyyyMMdd_HHmmss"

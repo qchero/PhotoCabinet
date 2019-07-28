@@ -12,19 +12,16 @@ namespace PhotoCabinet
         static readonly List<IProcessor> Processors = new List<IProcessor>
         {
             new FileDiscoverProcessor(),
-            // new FileRenameProcessor()
+            new FileRenameProcessor()
         };
 
         static void Main(string[] _)
         {
-            var context = new Context
-            {
-                Configuration = new Configuration()
-            };
+            var context = new Context();
 
+            var logFilePath = Path.Combine(context.Configuration.LibraryDirectory, "log-{Date}.log");
             var loggerFactory = new LoggerFactory()
-                .AddFile(
-                    pathFormat: Path.Combine(context.Configuration.LibraryDirectory, "log-{Date}.log"),
+                .AddFile(pathFormat: logFilePath,
                     outputTemplate: "{Timestamp:s} [{Level:u3}] ({EventId:x8}) {Message}{NewLine}{Exception}");
 
             foreach (var processor in Processors)
@@ -40,7 +37,8 @@ namespace PhotoCabinet
                         throw new Exception($"Failed to prepare context for {processor.GetType()}");
                     }
 
-                    Console.Write("Please check the log and confirm if you want to proceed (Y/N):");
+                    Console.WriteLine($"Please check the log file for pending operations in: {context.Configuration.LibraryDirectory}");
+                    Console.Write("Confirm if you want to proceed (Y/N):");
                     var input = Console.ReadLine();
                     if (!input.Trim().Equals("y", StringComparison.OrdinalIgnoreCase))
                     {

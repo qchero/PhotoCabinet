@@ -28,5 +28,14 @@ namespace PhotoCabinetTest.Utility
         {
             Assert.Equal(expectedResult, path.IsSubPathOf(baseDirPath));
         }
+
+        [Theory]
+        [InlineData(@"c:\foo", @"foo")]
+        [InlineData(@"c:\foo\", @"foo")]
+        [InlineData(@"c:\foo\haha\yo\hey", @"hey")]
+        public void LastPartTest(string path, string lastPart)
+        {
+            Assert.Equal(lastPart, path.LastPart());
+        }
     }
 }
