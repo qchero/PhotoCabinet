@@ -11,6 +11,7 @@ namespace PhotoCabinet.Model
             LibraryGroupToFileMap = new Dictionary<string, HashSet<string>>();
             PendingProcessingFiles = new List<string>();
             FileToMetadataMap = new Dictionary<string, Metadata>();
+            MoveActions = new List<MoveAction>();
         }
 
         public Configuration Configuration { get; set; }

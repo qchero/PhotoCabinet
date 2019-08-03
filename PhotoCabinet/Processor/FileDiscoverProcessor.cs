@@ -22,10 +22,11 @@ namespace PhotoCabinet
         /// <summary>
         /// Validate the context
         /// </summary>
-        private static void ValidateContext(Context context)
+        private static void ValidateContext(Context context, ILogger log)
         {
             if (context.Configuration.LibraryDirectory.IsSubPathOf(context.Configuration.PendingProcessingDirectory))
             {
+                log.LogError("Library directory shouldn't be sub directory of pending processing directory");
                 throw new Exception("Library directory shouldn't be sub directory of pending processing directory");
             }
         }
@@ -49,7 +50,7 @@ namespace PhotoCabinet
         /// </summary>
         public bool PrepareContext(Context context, ILogger log)
         {
-            ValidateContext(context);
+            ValidateContext(context, log);
 
             DiscoverPendingProcessingFiles(context, log);
 
@@ -89,8 +90,16 @@ namespace PhotoCabinet
                     continue;
                 }
 
+                // If the directory is other known directory, ignore it
+                var yearDirName = yearDir.LastPart();
+                if (yearDirName.Equals("ProcessingLogs", StringComparison.OrdinalIgnoreCase))
+                {
+                    log.LogInformation($"Directory ignored since it's logging directory: {yearDir}");
+                    continue;
+                }
+
                 // Check for invalid year
-                if (!int.TryParse(yearDir.LastPart(), out var year))
+                if (!int.TryParse(yearDirName, out var year))
                 {
                     log.LogWarning($"The name of year directory is not valid: {yearDir.LastPart()}");
                     log.LogWarning($"Photos in {yearDir} will be ignored");
@@ -126,14 +135,14 @@ namespace PhotoCabinet
                     {
                         date = new DateTime(year, month, 1);
                     }
-                    catch (ArgumentOutOfRangeException _)
+                    catch (ArgumentOutOfRangeException)
                     {
                         log.LogWarning($"The year or month of the directory is not valid: {monthDir}");
                         continue;
                     }
 
                     // Start evaluating each file
-                    var group = date.ToString("yyyyMM");
+                    var group = date.ToDirectory();
                     int count = 0;
                     foreach (var path in GetAllFilesInDirectory(monthDir))
                     {

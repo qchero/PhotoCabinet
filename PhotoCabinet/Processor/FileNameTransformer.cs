@@ -1,28 +1,63 @@
-﻿using System;
+﻿using PhotoCabinet.Utility;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
 namespace PhotoCabinet
 {
-    public static class FileNameTransformer
+    public interface IFileNameTransformer
     {
-        public static string Transform(Metadata metadata, string format)
-        {
-            var fileExtension = Path.GetExtension(metadata.FilePath);
+        string Transform(Metadata metadata, string format, string dedupFormat, HashSet<string> dedupSet);
+    }
 
-            if (metadata?.TimeTaken == null)
+    public class FileNameTransformer : IFileNameTransformer
+    {
+        public string Transform(Metadata metadata, string format, string dedupFormat, HashSet<string> dedupSet)
+        {
+            // Validate input
+            if (string.IsNullOrWhiteSpace(format) || string.IsNullOrWhiteSpace(dedupFormat))
             {
-                throw new MetadataMissingException();
+                throw new Exception("Invalid format input");
             }
 
-            var newName = format
-                .Replace("[date]", metadata.TimeTaken?.ToString("yyyyMMdd") ?? "XXX")
-                .Replace("[time]", metadata.TimeTaken?.ToString("HHmmss") ?? "XXX")
-                .Replace(".[ext]", "[ext]")
-                .Replace("[ext]", fileExtension);
+            // Find out extension and base name
+            var fileExtension = Path.GetExtension(metadata.FilePath);
+            var type = MediaTypeUtils.IsImage(fileExtension) ? "IMG" : "VID";
 
-            return newName;
+            var time = metadata?.GetPreferredTime();
+            if (time == null)
+            {
+                throw new Exception("Preferred time is missing in metadata");
+            }
+
+            var newNameWithoutExtension = format
+                .Replace("[type]", type)
+                .Replace("[date]", time.Value.ToString("yyyyMMdd"))
+                .Replace("[time]", time.Value.ToString("HHmmss"));
+
+            // Enumerate names for deduping
+            int dedupNum = 0;
+            while (true)
+            {
+                if (dedupNum > 100)
+                {
+                    throw new Exception("Attempted 100 dedup number but couldn't find a new name");
+                }
+
+                // If it's 0 don't add suffix
+                var dedupStr = dedupNum == 0
+                    ? string.Empty
+                    : dedupFormat.Replace("[num]", $"{dedupNum:D2}");
+                var attemptedName = newNameWithoutExtension + dedupStr + fileExtension;
+
+                if (!dedupSet.Contains(attemptedName))
+                {
+                    return attemptedName;
+                }
+
+                dedupNum++;
+            }
         }
     }
 }

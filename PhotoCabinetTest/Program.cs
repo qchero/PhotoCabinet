@@ -39,7 +39,6 @@ namespace PhotoTest
             }
         }
 
-
         public static string GetMd5(Image<Rgba32> image)
         {
             var md5 = MD5.Create();

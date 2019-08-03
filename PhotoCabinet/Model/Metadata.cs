@@ -1,12 +1,14 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace PhotoCabinet
 {
     public class Metadata
-    { 
+    {
         public string FilePath { get; set; }
 
         public string FileName { get; set; }
@@ -24,13 +26,15 @@ namespace PhotoCabinet
 
         public DateTime TimeFileModified { get; set; }
 
-        public string Md5 { get; set; }
+        public string Md5 => this.Md5Func();
+
+        public Func<string> Md5Func { get; set; }
 
         /// <summary>
         /// Choose the preferred datetime in the order of:
-        /// TimeInferredFromFileName => TimeTaken => TimeFileModified
+        /// TimeInferredFromFileName => TimeTaken //=> TimeFileModified
         /// </summary>
-        public DateTime PreferredTime(ILogger log)
+        public DateTime GetPreferredTime()
         {
             if (TimeInferredFromFileName.HasValue)
             {
@@ -39,12 +43,10 @@ namespace PhotoCabinet
 
             if (TimeTaken.HasValue)
             {
-                return TimeInferredFromFileName.Value;
+                return TimeTaken.Value;
             }
 
-            log.LogWarning($"No time found for {FilePath}, fallback to file modified time");
-
-            return TimeFileModified;
+            return DateTime.MinValue;
         }
 
         public bool IsSameMedia(Metadata otherMetadata)

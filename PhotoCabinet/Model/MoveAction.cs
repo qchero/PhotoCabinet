@@ -6,10 +6,8 @@ namespace PhotoCabinet.Model
 {
     public class MoveAction
     {
-        bool IsPerformed { get; set; }
+        public string CurrentPath { get; set; }
 
-        string CurrentPath { get; set; }
-
-        string NewPath { get; set; }
+        public string NewPath { get; set; }
     }
 }
