@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using PhotoCabinet.Analyzer;
+using PhotoCabinet.Database;
 using PhotoCabinet.Model;
 using PhotoCabinet.Processor;
 using PhotoCabinet.Utility;
@@ -19,6 +20,13 @@ namespace PhotoCabinet
     /// </summary>
     public class FileDiscoverProcessor : IProcessor
     {
+        private Md5Cache m_md5Cache;
+
+        public FileDiscoverProcessor(Md5Cache md5Cache)
+        {
+            m_md5Cache = md5Cache ?? throw new ArgumentNullException();
+        }
+
         /// <summary>
         /// Validate the context
         /// </summary>
@@ -52,9 +60,11 @@ namespace PhotoCabinet
         {
             ValidateContext(context, log);
 
-            DiscoverPendingProcessingFiles(context, log);
-
+            // First discover library
             DiscoverLibraryFiles(context, log);
+
+            // Then discover pending processing files
+            DiscoverPendingProcessingFiles(context, log);
 
             return true;
         }
@@ -71,11 +81,18 @@ namespace PhotoCabinet
         {
             foreach (var path in GetAllFilesInDirectory(context.Configuration.PendingProcessingDirectory.ToFullPath()))
             {
+                // Don't use Md5 cache when analyzing pending files
                 var metadata = MetadataAnalyzer.Extract(path);
+                if (metadata.MediaType == MediaType.Unknown)
+                {
+                    log.LogWarning($"Skipping file since it's not a image or video: {path}");
+                    continue;
+                }
+
                 context.AddPendingProcessingFiles(path, metadata);
             }
 
-            log.LogInformationWithPaths($"{context.FileToMetadataMap.Count} files pending processing", context.PendingProcessingFiles);
+            log.LogInformation($"{context.FileToMetadataMap.Count} files pending processing");
         }
 
         private void DiscoverLibraryFiles(Context context, ILogger log)
@@ -90,11 +107,11 @@ namespace PhotoCabinet
                     continue;
                 }
 
-                // If the directory is other known directory, ignore it
+                // If the directory is an ignored directory, ignore it
                 var yearDirName = yearDir.LastPart();
-                if (yearDirName.Equals("ProcessingLogs", StringComparison.OrdinalIgnoreCase))
+                if (context.Configuration.IgnoredDirectories.Any(d => d.Equals(yearDirName, StringComparison.OrdinalIgnoreCase)))
                 {
-                    log.LogInformation($"Directory ignored since it's logging directory: {yearDir}");
+                    log.LogInformation($"Directory ignored since it's an ignored directory: {yearDir}");
                     continue;
                 }
 
@@ -116,13 +133,6 @@ namespace PhotoCabinet
                 // Enumerate month directory
                 foreach (var monthDir in Directory.GetDirectories(yearDir))
                 {
-                    // If the directory is under pending processing directory, ignore it
-                    if (yearDir.IsSubPathOf(context.Configuration.PendingProcessingDirectory.ToFullPath()))
-                    {
-                        log.LogInformation($"Directory ignored since it's under pending processing directory: {yearDir}");
-                        continue;
-                    }
-
                     // Check for invalid month
                     if (monthDir.LastPart().Length != 2 || !int.TryParse(monthDir.LastPart(), out var month))
                     {
@@ -143,17 +153,36 @@ namespace PhotoCabinet
 
                     // Start evaluating each file
                     var group = date.ToDirectory();
-                    int count = 0;
+                    int groupCount = 0;
                     foreach (var path in GetAllFilesInDirectory(monthDir))
                     {
-                        count++;
+                        var metadata = MetadataAnalyzer.Extract(path, m_md5Cache);
+                        if (metadata.MediaType == MediaType.Unknown)
+                        {
+                            log.LogError($"Skipping file since it's not a image or video: {path}");
+                            continue;
+                        }
 
-                        var metadata = MetadataAnalyzer.Extract(path);
+                        // Check for duplicate by name and by MD5
+                        if (context.LibraryFileNameSet.Contains(metadata.FileName))
+                        {
+                            log.LogError($"Files with duplicated names in library: {path} == {metadata.FileName}");
+                            continue;
+                        }
+
+                        if (context.LibraryMd5ToFileMap.ContainsKey(metadata.Md5.Value))
+                        {
+                            log.LogError($"Files with duplicated MD5 in library: {path} == {context.LibraryMd5ToFileMap[metadata.Md5.Value]}");
+                            continue;
+                        }
+
+                        // Passed all checks, add to library
                         metadata.Group = group;
                         context.AddLibraryFiles(path, group, metadata);
+                        groupCount++;
                     }
 
-                    log.LogInformation($"Group {group} contains {count} files");
+                    log.LogInformation($"Group {group} contains {groupCount} files");
                 }
             }
         }

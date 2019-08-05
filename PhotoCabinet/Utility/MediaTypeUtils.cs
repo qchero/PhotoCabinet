@@ -4,29 +4,49 @@ using System.Text;
 
 namespace PhotoCabinet.Utility
 {
-    public class MediaTypeUtils
+    public enum MediaType
     {
-        private static string jpgExtension = ".jpg";
-        private static string pngExtension = ".png";
-        private static string mp4Extension = ".mp4";
-        private static string movExtension = ".mp4";
+        ImageBmp,
+        ImageJpg,
+        ImageJpeg,
+        ImagePng,
+        ImageNef,
+        VideoMp4,
+        VideoMov,
+        Unknown
+    }
 
-        private static readonly List<string> imageExtensions = new List<string> { jpgExtension, pngExtension };
-        private static readonly List<string> videoExtensions = new List<string> { movExtension, mp4Extension };
-
-        public static bool IsImage(string extension)
+    public static class MediaTypeUtils
+    {
+        private static Dictionary<string, MediaType> extensionToMediaTypeMap = new Dictionary<string, MediaType>
         {
-            return imageExtensions.Contains(extension.ToLower());
+            { ".bmp", MediaType.ImageBmp },
+            { ".jpg", MediaType.ImageJpg },
+            { ".jpeg", MediaType.ImageJpeg },
+            { ".png", MediaType.ImagePng },
+            { ".nef", MediaType.ImageNef },
+            { ".mp4", MediaType.VideoMp4 },
+            { ".mov", MediaType.VideoMov },
+        };
+
+        public static bool IsImage(this MediaType mediaType)
+        {
+            return mediaType.ToString().StartsWith("Image");
         }
 
-        public static bool IsMovVideo(string extension)
+        public static bool IsVideo(this MediaType mediaType)
         {
-            return movExtension == extension.ToLower();
+            return mediaType.ToString().StartsWith("Video");
         }
 
-        public static bool IsVideo(string extension)
+        public static MediaType GetMediaType(string extension)
         {
-            return videoExtensions.Contains(extension.ToLower());
+            if (extensionToMediaTypeMap.TryGetValue(extension.ToLower(), out var mediaType))
+            {
+                return mediaType;
+            }
+
+            return MediaType.Unknown;
         }
     }
 }

@@ -23,7 +23,7 @@ namespace PhotoCabinet
 
             // Find out extension and base name
             var fileExtension = Path.GetExtension(metadata.FilePath);
-            var type = MediaTypeUtils.IsImage(fileExtension) ? "IMG" : "VID";
+            var type = MediaTypeUtils.GetMediaType(fileExtension).IsImage() ? "IMG" : "VID";
 
             var time = metadata?.GetPreferredTime();
             if (time == null)

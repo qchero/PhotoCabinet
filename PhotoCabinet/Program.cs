@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using PhotoCabinet.Database;
 using PhotoCabinet.FileOperation;
 using PhotoCabinet.Model;
 using PhotoCabinet.Processor;
@@ -10,11 +11,14 @@ namespace PhotoCabinet
 {
     class Program
     {
-        static readonly List<IProcessor> Processors = new List<IProcessor>
+        private static List<IProcessor> Processors(Context context)
         {
-            new FileDiscoverProcessor(),
-            new FileGroupingProcessor(new FileNameTransformer(), new FileMover())
-        };
+            return new List<IProcessor>
+            {
+                new FileDiscoverProcessor(new Md5Cache(Path.Combine(context.Configuration.LibraryDirectory, "Data", "Md5Cache.db"))),
+                new FileGroupingProcessor(new FileNameTransformer(), new FileMover())
+            };
+        }
 
         static void Main(string[] _)
         {
@@ -30,7 +34,7 @@ namespace PhotoCabinet
             log.LogInformation("=====================================================");
             log.LogInformation($"Running Photo Cabinet at {DateTime.Now.ToString()}");
             log.LogInformation("=====================================================");
-            foreach (var processor in Processors)
+            foreach (var processor in Processors(context))
             {
                 try
                 {
@@ -65,6 +69,7 @@ namespace PhotoCabinet
                 {
                     log.LogCritical(exception.Message);
                     log.LogInformation("=====================================================");
+                    return;
                 }
             }
 

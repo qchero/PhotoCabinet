@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using PhotoCabinet.Utility;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,6 +14,8 @@ namespace PhotoCabinet
 
         public string FileName { get; set; }
 
+        public MediaType MediaType { get; set; }
+
         /// <summary>
         /// The year-month group the photo belongs to, e.g. "2019/09"
         /// </summary>
@@ -20,15 +23,13 @@ namespace PhotoCabinet
 
         public DateTime? TimeInferredFromFileName { get; set; }
 
-        public DateTime? TimeTaken { get; set; }
+        public Lazy<DateTime?> TimeTaken { get; set; }
 
-        public DateTime TimeFileCreated { get; set; }
+        public Lazy<DateTime> TimeFileCreated { get; set; }
 
-        public DateTime TimeFileModified { get; set; }
+        public Lazy<DateTime> TimeFileModified { get; set; }
 
-        public string Md5 => this.Md5Func();
-
-        public Func<string> Md5Func { get; set; }
+        public Lazy<string> Md5;
 
         /// <summary>
         /// Choose the preferred datetime in the order of:
@@ -41,9 +42,9 @@ namespace PhotoCabinet
                 return TimeInferredFromFileName.Value;
             }
 
-            if (TimeTaken.HasValue)
+            if (TimeTaken.Value.HasValue)
             {
-                return TimeTaken.Value;
+                return TimeTaken.Value.Value;
             }
 
             return DateTime.MinValue;

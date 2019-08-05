@@ -1,6 +1,7 @@
 ﻿using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Formats.QuickTime;
+using PhotoCabinet.Database;
 using PhotoCabinet.Utility;
 using System;
 using System.Collections.Generic;
@@ -15,50 +16,90 @@ namespace PhotoCabinet.Analyzer
 {
     public static class MetadataAnalyzer
     {
-        public static Metadata Extract(string filePath)
+        public static Metadata Extract(string filePath, Md5Cache md5Cache = null)
         {
             // Get file info
             string fileName = Path.GetFileName(filePath);
-            FileInfo fileInfo = new FileInfo(filePath);
-            var fileExtension = fileInfo.Extension;
-
-            DateTime? timeTaken = null;
-            var metadataDirectories = ImageMetadataReader.ReadMetadata(filePath);
-            if (MediaTypeUtils.IsImage(fileExtension))
-            {
-                // Extract metadata from EXIF data
-                var exifSubIfdDirectory = metadataDirectories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
-                var timeTakenStr = exifSubIfdDirectory?.GetDescription(ExifDirectoryBase.TagDateTimeOriginal)
-                    ?? exifSubIfdDirectory?.GetDescription(ExifDirectoryBase.TagDateTime);
-                timeTaken = timeTakenStr != null ?
-                    DateTime.ParseExact(timeTakenStr, "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture) :
-                    new DateTime?();
-            }
-            else if (MediaTypeUtils.IsMovVideo(fileExtension))
-            {
-                // Extract metadata for video - format: "Sun Oct 23 00:46:50 2016"
-                var quickTimeMovieHeaderDirectory = metadataDirectories.OfType<QuickTimeMovieHeaderDirectory>().FirstOrDefault();
-                var timeTakenStr = quickTimeMovieHeaderDirectory?.GetDescription(QuickTimeMovieHeaderDirectory.TagCreated);
-                timeTaken = timeTakenStr != null ?
-                    DateTime.ParseExact(timeTakenStr, "ddd MMM dd HH:mm:ss yyyy", CultureInfo.InvariantCulture) :
-                    new DateTime?();
-            }
+            var fileExtension = Path.GetExtension(filePath);
+            var mediaType = MediaTypeUtils.GetMediaType(fileExtension);
 
             // Infer time from file name
             var timeInferredFromFileName = InferDateTimeFromFileName(new Configuration().KnownDateFormats, fileName);
+
+            // Lazy retrival of created and modified time
+            var timeFileCreatedLazy = new Lazy<DateTime>(() =>
+            {
+                FileInfo fileInfo = new FileInfo(filePath);
+                return fileInfo.CreationTime;
+            });
+
+            var timeFileModifiedLazy = new Lazy<DateTime>(() =>
+            {
+                FileInfo fileInfo = new FileInfo(filePath);
+                return fileInfo.LastWriteTime;
+            });
+
+            // Lazy retrival of time taken
+            var timeTakenLazy = new Lazy<DateTime?>(() =>
+            {
+                DateTime? timeTaken = null;
+                var metadataDirectories = ImageMetadataReader.ReadMetadata(filePath);
+                if (mediaType.IsImage())
+                {
+                    // Extract metadata from EXIF data
+                    var exifSubIfdDirectories = metadataDirectories.OfType<ExifSubIfdDirectory>();
+                    var timeTakenStr =
+                        exifSubIfdDirectories
+                        .Select(d => d.GetDescription(ExifDirectoryBase.TagDateTimeOriginal))
+                        .Where(d => !string.IsNullOrEmpty(d))
+                        .FirstOrDefault()
+                        ??
+                        exifSubIfdDirectories
+                        .Select(d => d.GetDescription(ExifDirectoryBase.TagDateTime))
+                        .Where(d => !string.IsNullOrEmpty(d))
+                        .FirstOrDefault();
+                    timeTaken = timeTakenStr != null ?
+                        DateTime.ParseExact(timeTakenStr, "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture) :
+                        new DateTime?();
+                }
+                else if (mediaType.IsVideo())
+                {
+                    // Extract metadata for video - format: "Sun Oct 23 00:46:50 2016"
+                    var quickTimeMovieHeaderDirectory = metadataDirectories.OfType<QuickTimeMovieHeaderDirectory>().FirstOrDefault();
+                    var timeTakenStr = quickTimeMovieHeaderDirectory?.GetDescription(QuickTimeMovieHeaderDirectory.TagCreated);
+                    timeTaken = timeTakenStr != null ?
+                        DateTime.ParseExact(timeTakenStr, "ddd MMM dd HH:mm:ss yyyy", CultureInfo.InvariantCulture) :
+                        new DateTime?();
+                }
+
+                return timeTaken;
+            });
+
+            // Lazy retrival of MD5
+            var md5Lazy = new Lazy<string>(() =>
+            {
+                if (md5Cache == null)
+                {
+                    return GetMd5(filePath);
+                }
+
+                // Md5 cache is keyed by file name
+                return md5Cache.CachedFunc(fileName, () =>
+                {
+                    return GetMd5(filePath);
+                });
+            });
 
             return new Metadata
             {
                 FilePath = filePath,
                 FileName = fileName,
+                MediaType = mediaType,
                 TimeInferredFromFileName = timeInferredFromFileName,
-                TimeTaken = timeTaken,
-                TimeFileCreated = fileInfo.CreationTime,
-                TimeFileModified = fileInfo.LastWriteTime,
-                Md5Func = new Func<string>(() =>
-                {
-                    return GetMd5(filePath);
-                })
+                TimeTaken = timeTakenLazy,
+                TimeFileCreated = timeFileCreatedLazy,
+                TimeFileModified = timeFileModifiedLazy,
+                Md5 = md5Lazy
             };
         }
 

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace PhotoCabinet.Model
 {
@@ -8,9 +9,11 @@ namespace PhotoCabinet.Model
         {
             Configuration = new Configuration();
             LibraryFiles = new List<string>();
-            LibraryGroupToFileMap = new Dictionary<string, HashSet<string>>();
+            LibraryFileNameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            LibraryGroupToFileMap = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            LibraryMd5ToFileMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             PendingProcessingFiles = new List<string>();
-            FileToMetadataMap = new Dictionary<string, Metadata>();
+            FileToMetadataMap = new Dictionary<string, Metadata>(StringComparer.OrdinalIgnoreCase);
             MoveActions = new List<MoveAction>();
         }
 
@@ -18,7 +21,15 @@ namespace PhotoCabinet.Model
 
         public List<string> LibraryFiles { get; private set; }
 
+        public HashSet<string> LibraryFileNameSet { get; private set; }
+
         public Dictionary<string, HashSet<string>> LibraryGroupToFileMap { get; private set; }
+
+        /// <summary>
+        /// Library MD5 to file path map
+        /// Used for global deduplication
+        /// </summary>
+        public Dictionary<string, string> LibraryMd5ToFileMap { get; private set; }
 
         /// <summary>
         /// List of files to be processed
@@ -43,12 +54,19 @@ namespace PhotoCabinet.Model
             LibraryFiles.Add(path);
             FileToMetadataMap[path] = metadata;
 
+            // Add to LibraryGroupToFileMap
             if (!LibraryGroupToFileMap.ContainsKey(group))
             {
-                LibraryGroupToFileMap.Add(group, new HashSet<string>());
+                LibraryGroupToFileMap.Add(group, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
             }
 
             LibraryGroupToFileMap[group].Add(path);
+
+            // Add to LibraryFileNameSet
+            LibraryFileNameSet.Add(metadata.FileName);
+
+            // Add to LibraryMd5ToFileMap
+            LibraryMd5ToFileMap.Add(metadata.Md5.Value, path);
         }
     }
 }

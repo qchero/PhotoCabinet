@@ -8,7 +8,18 @@ namespace PhotoCabinet
     {
         public string LibraryDirectory = @"F:\OneDrive\Photo Library";
 
-        public string PendingProcessingDirectory = @"F:\OneDrive\Photo Library\PendingProcessing";
+        public string PendingProcessingDirectory = @"F:\Photo_PendingProcessing";
+            //@"F:\OneDrive\Photo Library\PendingProcessing";
+
+        public string[] IgnoredDirectories =
+        {
+            @"Data",
+            @"ProcessingLogs",
+            @"NoDate",
+            @"Special",
+            @"Duplicates",
+            @"PendingProcessing"
+        };
 
         public string Format = @"[type]_[date]_[time]";
 
@@ -16,7 +27,8 @@ namespace PhotoCabinet
 
         public string[] KnownDateFormats =
         {
-            "yyyyMMdd_HHmmss"
+            "yyyyMMdd_HHmmss",
+            "yyyy_MM_dd_HH_mm_ss",
         };
     }
 }

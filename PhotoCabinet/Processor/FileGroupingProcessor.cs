@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
-using PhotoCabinet.Analyzer;
 using PhotoCabinet.FileOperation;
 using PhotoCabinet.Model;
 using PhotoCabinet.Processor;
@@ -24,13 +23,13 @@ namespace PhotoCabinet
             m_fileMover = fileMover ?? throw new ArgumentNullException();
         }
 
-        private IFileNameTransformer m_fileNameTransformer;
-        private IFileMover m_fileMover;
+        private readonly IFileNameTransformer m_fileNameTransformer;
+        private readonly IFileMover m_fileMover;
 
         public bool PrepareContext(Context context, ILogger log)
         {
             // First, group all the pending processing files
-            Dictionary<string, HashSet<string>> pendingProcessingGroupToFileMap = new Dictionary<string, HashSet<string>>();
+            Dictionary<string, HashSet<string>> pendingProcessingGroupToFileMap = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             foreach (var path in context.PendingProcessingFiles)
             {
                 var metadata = context.FileToMetadataMap[path];
@@ -55,31 +54,16 @@ namespace PhotoCabinet
             {
                 var groupDirectory = Path.Combine(context.Configuration.LibraryDirectory, group.Key);
 
-                // Build a map for dedup
-                var groupMd5ToFileNameMap = context.LibraryGroupToFileMap.ContainsKey(group.Key)
-                    ? context.LibraryGroupToFileMap[group.Key]
-                        .Select(p => context.FileToMetadataMap[p])
-                        .ToDictionary(m => m.Md5, m => Path.GetFileName(m.FilePath))
-                    : new Dictionary<string, string>();
-                var groupFileNameSet = groupMd5ToFileNameMap.Values
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
                 // Process each file in the group in the order of file name without extension
                 var filesToMove = new List<string>();
-                var filesDuplicated = new List<string>();
                 var paths = group.Value.OrderBy(p => Path.GetFileNameWithoutExtension(p));
                 foreach (var path in paths)
                 {
                     // Check for duplicates
                     var metadata = context.FileToMetadataMap[path];
-                    if (groupMd5ToFileNameMap.ContainsKey(metadata.Md5))
-                    {
-                        filesDuplicated.Add($"{path} == {groupMd5ToFileNameMap[metadata.Md5]}");
-                        continue;
-                    }
 
                     // Try finding a proper name
-                    string newFileName = m_fileNameTransformer.Transform(metadata, context.Configuration.Format, context.Configuration.DedupSuffixFormat, groupFileNameSet);
+                    string newFileName = m_fileNameTransformer.Transform(metadata, context.Configuration.Format, context.Configuration.DedupSuffixFormat, context.LibraryFileNameSet);
 
                     // Update context and Add move action
                     var newPath = Path.Combine(groupDirectory, newFileName);
@@ -90,10 +74,6 @@ namespace PhotoCabinet
                         CurrentPath = path,
                         NewPath = newPath
                     });
-
-                    // Update local map and set
-                    groupMd5ToFileNameMap.Add(metadata.Md5, newFileName);
-                    groupFileNameSet.Add(newFileName);
 
                     // Add to logs
                     var renamePath = newFileName == metadata.FileName
@@ -106,11 +86,6 @@ namespace PhotoCabinet
                 if (filesToMove.Count > 0)
                 {
                     log.LogInformationWithPaths($"{filesToMove.Count} files will be moved to group {group.Key} at: {groupDirectory}", filesToMove);
-                }
-
-                if (filesDuplicated.Count > 0)
-                {
-                    log.LogInformationWithPaths($"{filesDuplicated.Count} files are skipped because of duplication:", filesDuplicated);
                 }
             }
 
