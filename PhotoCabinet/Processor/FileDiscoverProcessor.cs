@@ -60,10 +60,13 @@ namespace PhotoCabinet
         {
             ValidateContext(context, log);
 
-            // First discover library
+            // Discover library
             DiscoverLibraryFiles(context, log);
 
-            // Then discover pending processing files
+            // Discover no date files
+            DiscoverNoDateFiles(context, log);
+
+            // Discover pending processing files
             DiscoverPendingProcessingFiles(context, log);
 
             return true;
@@ -92,7 +95,23 @@ namespace PhotoCabinet
                 context.AddPendingProcessingFiles(path, metadata);
             }
 
-            log.LogInformation($"{context.FileToMetadataMap.Count} files pending processing");
+            log.LogInformation($"{context.PendingProcessingFiles.Count} files pending processing");
+        }
+
+        private void DiscoverNoDateFiles(Context context, ILogger log)
+        {
+            foreach (var path in GetAllFilesInDirectory(Path.Combine(context.Configuration.LibraryDirectory.ToFullPath(), context.Configuration.NoDateDirectoryName)))
+            {
+                var metadata = MetadataAnalyzer.Extract(path);
+                if (metadata.MediaType == MediaType.Unknown)
+                {
+                    log.LogError($"Skipping file since it's not a image or video: {path}");
+                    continue;
+                }
+                context.AddNoDateFiles(path, metadata);
+            }
+
+            log.LogInformation($"{context.Configuration.NoDateDirectoryName} contains {context.NoDateFiles.Count} files");
         }
 
         private void DiscoverLibraryFiles(Context context, ILogger log)
@@ -111,7 +130,7 @@ namespace PhotoCabinet
                 var yearDirName = yearDir.LastPart();
                 if (context.Configuration.IgnoredDirectories.Any(d => d.Equals(yearDirName, StringComparison.OrdinalIgnoreCase)))
                 {
-                    log.LogInformation($"Directory ignored since it's an ignored directory: {yearDir}");
+                    log.LogDebug($"Directory ignored since it's an ignored directory: {yearDir}");
                     continue;
                 }
 
@@ -163,7 +182,7 @@ namespace PhotoCabinet
                             continue;
                         }
 
-                        // Check for duplicate by name and by MD5
+                        // Check for duplicate in library by name and by MD5
                         if (context.LibraryFileNameSet.Contains(metadata.FileName))
                         {
                             log.LogError($"Files with duplicated names in library: {path} == {metadata.FileName}");

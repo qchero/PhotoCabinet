@@ -12,7 +12,7 @@ namespace PhotoCabinet
     {
         public string FilePath { get; set; }
 
-        public string FileName { get; set; }
+        public string FileName => Path.GetFileName(FilePath);
 
         public MediaType MediaType { get; set; }
 

@@ -15,8 +15,9 @@ namespace PhotoCabinet
         {
             return new List<IProcessor>
             {
-                new FileDiscoverProcessor(new Md5Cache(Path.Combine(context.Configuration.LibraryDirectory, "Data", "Md5Cache.db"))),
+                new FileDiscoverProcessor(new Md5Cache(Path.Combine(context.Configuration.LibraryDirectory, "ProcessingData", "Md5Cache.db"))),
                 new FileGroupingProcessor(new FileNameTransformer(), new FileMover())
+                //new FileRenameProcessor(new FileMover())
             };
         }
 
@@ -24,7 +25,7 @@ namespace PhotoCabinet
         {
             var context = new Context();
 
-            var logFilePath = Path.Combine(context.Configuration.LibraryDirectory, @"ProcessingLogs\log-{Date}.log");
+            var logFilePath = Path.Combine(context.Configuration.LibraryDirectory, @"ProcessingData\log-{Date}.log");
             var loggerFactory = new LoggerFactory()
                 .AddFile(pathFormat: logFilePath,
                     outputTemplate: "{Timestamp:s} [{Level:u3}] ({EventId:x8}) {Message}{NewLine}{Exception}");

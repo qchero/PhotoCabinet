@@ -1,18 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace PhotoCabinet.Utility
 {
     public enum MediaType
     {
         ImageBmp,
+        ImageHeic,
         ImageJpg,
         ImageJpeg,
         ImagePng,
         ImageNef,
+        ImageGif,
         VideoMp4,
         VideoMov,
+        VideoM4v,
         Unknown
     }
 
@@ -23,10 +24,13 @@ namespace PhotoCabinet.Utility
             { ".bmp", MediaType.ImageBmp },
             { ".jpg", MediaType.ImageJpg },
             { ".jpeg", MediaType.ImageJpeg },
+            { ".heic", MediaType.ImageHeic },
             { ".png", MediaType.ImagePng },
             { ".nef", MediaType.ImageNef },
+            { ".gif", MediaType.ImageGif },
             { ".mp4", MediaType.VideoMp4 },
             { ".mov", MediaType.VideoMov },
+            { ".m4v", MediaType.VideoM4v },
         };
 
         public static bool IsImage(this MediaType mediaType)

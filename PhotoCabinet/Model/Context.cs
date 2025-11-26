@@ -8,11 +8,17 @@ namespace PhotoCabinet.Model
         public Context()
         {
             Configuration = new Configuration();
+
             LibraryFiles = new List<string>();
             LibraryFileNameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             LibraryGroupToFileMap = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             LibraryMd5ToFileMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            NoDateFiles = new List<string>();
+            NoDateFileNameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             PendingProcessingFiles = new List<string>();
+
             FileToMetadataMap = new Dictionary<string, Metadata>(StringComparer.OrdinalIgnoreCase);
             MoveActions = new List<MoveAction>();
         }
@@ -37,6 +43,13 @@ namespace PhotoCabinet.Model
         public List<string> PendingProcessingFiles { get; private set; }
 
         /// <summary>
+        /// List of files to be processed
+        /// </summary>
+        public List<string> NoDateFiles { get; private set; }
+
+        public HashSet<string> NoDateFileNameSet { get; private set; }
+
+        /// <summary>
         /// 
         /// </summary>
         public Dictionary<string, Metadata> FileToMetadataMap { get; private set; }
@@ -47,6 +60,14 @@ namespace PhotoCabinet.Model
         {
             PendingProcessingFiles.Add(path);
             FileToMetadataMap[path] = metadata;
+        }
+
+        public void AddNoDateFiles(string path, Metadata metadata)
+        {
+            NoDateFiles.Add(path);
+            FileToMetadataMap[path] = metadata;
+
+            NoDateFileNameSet.Add(metadata.FileName);
         }
 
         public void AddLibraryFiles(string path, string group, Metadata metadata)

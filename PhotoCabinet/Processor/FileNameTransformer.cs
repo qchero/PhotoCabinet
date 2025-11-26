@@ -9,6 +9,7 @@ namespace PhotoCabinet
     public interface IFileNameTransformer
     {
         string Transform(Metadata metadata, string format, string dedupFormat, HashSet<string> dedupSet);
+        string TransformSuffix(string nameWithoutExtension, string fileExtension, string dedupFormat, HashSet<string> dedupSet);
     }
 
     public class FileNameTransformer : IFileNameTransformer
@@ -36,6 +37,11 @@ namespace PhotoCabinet
                 .Replace("[date]", time.Value.ToString("yyyyMMdd"))
                 .Replace("[time]", time.Value.ToString("HHmmss"));
 
+            return TransformSuffix(newNameWithoutExtension, fileExtension, dedupFormat, dedupSet);
+        }
+
+        public string TransformSuffix(string nameWithoutExtension, string fileExtension, string dedupFormat, HashSet<string> dedupSet)
+        {
             // Enumerate names for deduping
             int dedupNum = 0;
             while (true)
@@ -49,7 +55,7 @@ namespace PhotoCabinet
                 var dedupStr = dedupNum == 0
                     ? string.Empty
                     : dedupFormat.Replace("[num]", $"{dedupNum:D2}");
-                var attemptedName = newNameWithoutExtension + dedupStr + fileExtension;
+                var attemptedName = nameWithoutExtension + dedupStr + fileExtension;
 
                 if (!dedupSet.Contains(attemptedName))
                 {

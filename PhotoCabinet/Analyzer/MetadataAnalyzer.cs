@@ -4,7 +4,6 @@ using MetadataExtractor.Formats.QuickTime;
 using PhotoCabinet.Database;
 using PhotoCabinet.Utility;
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -93,7 +92,6 @@ namespace PhotoCabinet.Analyzer
             return new Metadata
             {
                 FilePath = filePath,
-                FileName = fileName,
                 MediaType = mediaType,
                 TimeInferredFromFileName = timeInferredFromFileName,
                 TimeTaken = timeTakenLazy,
